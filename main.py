@@ -10,6 +10,7 @@ import dbworker
 import price as p
 
 from loguru import logger
+from telegram_bot_calendar import WYearTelegramCalendar, LSTEP
 
 if __name__ == '__main__':
     bot = telebot.TeleBot(token=config.token)
@@ -20,6 +21,15 @@ if __name__ == '__main__':
     logger.debug('Error')
     logger.info('Information message')
     logger.warning('Warning')
+    LSTEP = {'y': 'год', 'm': 'месяц', 'd': 'день'}
+
+class MyStyleCalendar(WYearTelegramCalendar):
+    # previous and next buttons style. they are emoji now!
+    prev_button = "⬅️"
+    next_button = "➡️"
+    # you do not want empty cells when month and year are being selected
+    empty_month_button = ""
+    empty_year_button = ""
 
 
 def form_media_group(photos: list, error: bool = False) -> list:
@@ -30,19 +40,6 @@ def form_media_group(photos: list, error: bool = False) -> list:
             continue
         media.append(types.InputMediaPhoto(media=photo[0]))
     return media
-
-
-def is_date_valid(first_date: str, second_date: str) -> bool:
-    """Функция для проверки на корректность дат"""
-    try:
-        first_date = datetime.datetime.strptime(first_date, '%d.%m.%Y')
-        second_date = datetime.datetime.strptime(second_date, '%d.%m.%Y')
-        if first_date < second_date:
-            return False
-        else:
-            return True
-    except ValueError:
-        return False
 
 
 def reset(id: Union[str, int]) -> None:
@@ -211,21 +208,32 @@ def get_quantity(message: types.Message) -> None:
         globalVar[message.chat.id]['quantity'] = message.text
         bot.send_message(chat_id=message.chat.id, text="Планируемая дата заезда (дд.мм.гггг)?")
         dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_CHECKIN.value)
+        my_calendar(id=message.chat.id)
 
 
-@bot.message_handler(
-    func=lambda message: dbworker.get_current_state(id=message.chat.id) == config.States.S_ENTER_CHECKIN.value)
-def get_check_in(message: types.Message) -> None:
-    if message.text == '/reset':
-        reset(id=message.chat.id)
-    elif not is_date_valid(first_date=message.text,
-                           second_date=f'{datetime.datetime.now().day}.{datetime.datetime.now().month}.{datetime.datetime.now().year}'):
-        bot.send_message(chat_id=message.chat.id, text="Некорректная дата, попробуйте ещё раз!")
-        return
-    else:
-        globalVar[message.chat.id]['check_in'] = message.text
-        bot.send_message(chat_id=message.from_user.id, text="Планируемое кол-во дней?")
-        dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_CHECKOUT.value)
+def my_calendar(id):
+    calendar, step = MyStyleCalendar(locale='ru', min_date=datetime.date.today()).build()
+    bot.send_message(id, f"Выберите {LSTEP[step]}", reply_markup=calendar)
+
+
+@bot.callback_query_handler(func=MyStyleCalendar.func())
+def cal(c):
+    result, key, step = MyStyleCalendar(locale='ru', min_date=datetime.date.today()).process(c.data)
+    if c.data == "cbcal_0_n":
+        bot.delete_message(chat_id=c.message.chat.id, message_id=c.message.message_id)
+        reset(id=c.message.chat.id)
+    if not result and key:
+        bot.edit_message_text(f"Выберите {LSTEP[step]}",
+                              c.message.chat.id,
+                              c.message.message_id,
+                              reply_markup=key)
+    elif result:
+        bot.edit_message_text(f"Вы выбрали {result}",
+                              c.message.chat.id,
+                              c.message.message_id)
+        globalVar[c.message.chat.id]['check_in'] = result.strftime('%m.%d.%Y')
+        bot.send_message(chat_id=c.message.chat.id, text="Планируемое кол-во дней?")
+        dbworker.set_state(id=str(c.message.chat.id), state=config.States.S_ENTER_CHECKOUT.value)
 
 
 @bot.message_handler(
