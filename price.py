@@ -61,7 +61,6 @@ def parse_list(parse_list: list, uid: str, city: str, distance: str) -> Union[No
         return hotels
     except Exception:
         logger.exception(Exception)
-        return None
 
 
 def request_list(id: str, list_param: list) -> Union[None, list]:
@@ -96,7 +95,6 @@ def request_list(id: str, list_param: list) -> Union[None, list]:
         return parsed
     except Exception:
         logger.exception(Exception)
-        return None
 
 
 def request_photo(id_hotel: str) -> Union[None, list]:
@@ -113,7 +111,6 @@ def request_photo(id_hotel: str) -> Union[None, list]:
         return photos
     except Exception:
         logger.exception(Exception)
-        return None
 
 
 def start(list_par: list) -> tuple:
