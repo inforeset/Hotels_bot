@@ -41,7 +41,7 @@ def is_date_valid(first_date: str, second_date: str) -> bool:
             return False
         else:
             return True
-    except Exception:
+    except ValueError:
         return False
 
 
