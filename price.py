@@ -42,8 +42,9 @@ def parse_list(parse_list: list, uid: str, city: str, distance: str) -> Union[No
     """Функция для подготовки данных к записи в бд"""
     hotels = []
     hotel_id, name, adress, center, price = '', '', '', 'нет данных', ''
-    try:
-        for hotel in parse_list:
+
+    for hotel in parse_list:
+        try:
             hotel_id = hotel['id']
             name = hotel['name']
             adress = f'{hotel["address"]["countryName"]}, {city.capitalize()}, {hotel["address"].get("postalCode", "")}, {hotel["address"].get("streetAddress", "")}'
@@ -58,9 +59,10 @@ def parse_list(parse_list: list, uid: str, city: str, distance: str) -> Union[No
                 if float(distance) < float(center.split()[0].replace(',', '.')):
                     return hotels
             hotels.append((uid, hotel_id, name, adress, center, price, coordinates, star_rating, user_rating))
-        return hotels
-    except Exception:
-        logger.exception(Exception)
+        except Exception:
+            logger.exception(Exception)
+            continue
+    return hotels
 
 
 def request_list(id: str, list_param: list) -> Union[None, list]:
