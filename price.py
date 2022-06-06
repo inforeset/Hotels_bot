@@ -1,3 +1,4 @@
+from json import JSONDecodeError
 from typing import Union
 
 import requests
@@ -18,8 +19,8 @@ def req(url: str, headers: str = "", params=None) -> Union[bool, Response]:
         params = {}
     try:
         return requests.get(url=url, headers=headers, params=params, timeout=30)
-    except Exception:
-        logger.exception(Exception)
+    except requests.exceptions.RequestException as exc:
+        logger.exception(exc)
         return False
 
 
@@ -33,8 +34,8 @@ def request_city(city: str) -> Union[bool, str]:
         data = json.loads(request.text)
         coordinates = f'{data["suggestions"][0]["entities"][0]["latitude"]}+{data["suggestions"][0]["entities"][0]["longitude"]}'
         return f'{data["suggestions"][0]["entities"][0]["destinationId"]}|{data["suggestions"][0]["entities"][0]["name"]}|{coordinates}'
-    except Exception:
-        logger.exception(Exception)
+    except LookupError as exc:
+        logger.exception(exc)
         return False
 
 
@@ -59,8 +60,8 @@ def parse_list(parse_list: list, uid: str, city: str, distance: str) -> Union[No
                 if float(distance) < float(center.split()[0].replace(',', '.')):
                     return hotels
             hotels.append((uid, hotel_id, name, adress, center, price, coordinates, star_rating, user_rating))
-        except Exception:
-            logger.exception(Exception)
+        except (LookupError, ValueError) as exc:
+            logger.exception(exc)
             continue
     return hotels
 
@@ -95,8 +96,8 @@ def request_list(id: str, list_param: list) -> Union[None, list]:
         parsed = parse_list(parse_list=data['data']['body']['searchResults']['results'], uid=list_param[5],
                             city=list_param[0], distance=list_param[9])
         return parsed
-    except Exception:
-        logger.exception(Exception)
+    except (LookupError, JSONDecodeError, TypeError) as exc:
+        logger.exception(exc)
 
 
 def request_photo(id_hotel: str) -> Union[None, list]:
@@ -111,8 +112,8 @@ def request_photo(id_hotel: str) -> Union[None, list]:
             url = photo['baseUrl'].replace('_{size}', '_z')
             photos.append((id_hotel, url))
         return photos
-    except Exception:
-        logger.exception(Exception)
+    except (JSONDecodeError, TypeError) as exc:
+        logger.exception(exc)
 
 
 def start(list_par: list) -> tuple:
@@ -133,7 +134,11 @@ def start(list_par: list) -> tuple:
 
 def check_foto(photo: str) -> bool:
     """Функция для проверки URL фото"""
-    check_foto = requests.get(url=photo, timeout=30)
-    if check_foto.status_code == 200:
-        return True
-    return False
+    try:
+        check_foto = requests.get(url=photo, timeout=30)
+        if check_foto.status_code == 200:
+            return True
+        return False
+    except requests.exceptions.RequestException as exc:
+        logger.exception(exc)
+        return False
