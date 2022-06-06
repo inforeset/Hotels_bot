@@ -22,12 +22,12 @@ if __name__ == '__main__':
     logger.info('Information message')
     logger.warning('Warning')
     LSTEP = {'y': 'год', 'm': 'месяц', 'd': 'день'}
+    dbworker.set_state(id=str(id), state=config.States.S_START.value)
 
 class MyStyleCalendar(WYearTelegramCalendar):
-    # previous and next buttons style. they are emoji now!
+    "Класс календаря для кастомизации"
     prev_button = "⬅️"
     next_button = "➡️"
-    # you do not want empty cells when month and year are being selected
     empty_month_button = ""
     empty_year_button = ""
 
