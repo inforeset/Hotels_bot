@@ -22,7 +22,6 @@ if __name__ == '__main__':
     logger.info('Information message')
     logger.warning('Warning')
     LSTEP = {'y': 'год', 'm': 'месяц', 'd': 'день'}
-    dbworker.set_state(id=str(id), state=config.States.S_START.value)
 
 class MyStyleCalendar(WYearTelegramCalendar):
     "Класс календаря для кастомизации"
