@@ -23,7 +23,6 @@ if __name__ == '__main__':
     logger.warning('Warning')
     LSTEP = {'y': 'год', 'm': 'месяц', 'd': 'день'}
 
-
 class MyStyleCalendar(WYearTelegramCalendar):
     "Класс календаря для кастомизации"
     prev_button = "⬅️"
@@ -187,9 +186,8 @@ def get_city(message: types.Message) -> None:
         state_data[message.chat.id]['city'] = city.split('|')[1]
         state_data[message.chat.id]['destination_id'] = city.split('|')[0]
         keybord(id=message.chat.id, city='True')
-    else:
-        bot.send_message(chat_id=message.chat.id, text="Ничего не нашлось!")
-        reset(id=message.chat.id)
+    bot.send_message(chat_id=message.chat.id, text="Ничего не нашлось!")
+    reset(id=message.chat.id)
 
 
 @bot.message_handler(
