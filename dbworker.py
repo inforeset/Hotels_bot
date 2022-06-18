@@ -1,5 +1,4 @@
 import sqlite3 as sq
-from typing import Union
 
 from loguru import logger
 
@@ -50,7 +49,7 @@ def create_tables() -> None:
               """)
 
 
-def get_data(string:str) -> list:
+def get_data(string: str) -> list:
     """Функция для получения данных из БД в зависимости от запроса"""
     with sq.connect(config.db_file) as con:
         cur = con.cursor()
@@ -98,21 +97,19 @@ def set_data(string, values=tuple(), multiple=False) -> bool:
             else:
                 cur.execute(string)
             return True
-        except Exception:
-            logger.exception(Exception)
-            return False
+        except sq.Error as exc:
+            logger.exception(exc)
 
 
-def check_data(string: str) -> Union[bool, str]:
+def check_data(string: str) -> str:
     """Функция для проверки существования записи в таблице states"""
     with sq.connect(config.db_file) as con:
         cur = con.cursor()
         try:
             cur.execute(string)
             return cur.fetchone()[0]
-        except Exception:
-            logger.exception(Exception)
-            return False
+        except sq.Error as exc:
+            logger.exception(exc)
 
 
 def set_history(history: tuple) -> bool:
@@ -123,24 +120,18 @@ def set_history(history: tuple) -> bool:
                     values=history)
 
 
-def get_history(id:str) -> Union[bool, list]:
+def get_history(id: str) -> list:
     """Функция для получения данных из таблицы history"""
     history = get_data(
         string=f"SELECT uid, datetime, commands, city, quantity, checkin, checkout, price_min, price_max, distance, period, Error, uid from history WHERE chat_id = '{id}'")
-    if len(history) == 0:
-        return False
-    else:
-        return history
+    return history
 
 
-def get_hotels(uid:str) -> Union[bool, list]:
+def get_hotels(uid: str) -> list:
     """Функция для получения данных из таблицы hotels"""
     hotels = get_data(
         string=f"SELECT name, adress, hotel_id, coordinates, star_rating, user_rating, center, price from hotels WHERE uid = '{uid}'")
-    if len(hotels) == 0:
-        return False
-    else:
-        return hotels
+    return hotels
 
 
 def set_hotels(hotels: tuple) -> bool:

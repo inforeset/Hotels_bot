@@ -1,5 +1,5 @@
 ﻿Стек:
-Бот написан на Python 3.9 с использованием PyCharm 2021.3.3 (Community Edition).
+Бот написан на Python 3.9.
 Для работы бота необходимо дополнительно установить библиотеки «Requests» и «pyTelegramBotAPI»
 Бот использует API "rapidapi.com". 
 Для работы с БД используется sqlite3.

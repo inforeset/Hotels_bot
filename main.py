@@ -14,7 +14,7 @@ from telegram_bot_calendar import WYearTelegramCalendar, LSTEP
 
 if __name__ == '__main__':
     bot = telebot.TeleBot(token=config.token)
-    globalVar = {}
+    state_data = {}
     dbworker.create_tables()
     logger.add('logs/logs_{time}.log', level='DEBUG', format="{time} {level} {message}", rotation="06:00",
                compression="zip")
@@ -22,6 +22,7 @@ if __name__ == '__main__':
     logger.info('Information message')
     logger.warning('Warning')
     LSTEP = {'y': 'год', 'm': 'месяц', 'd': 'день'}
+
 
 class MyStyleCalendar(WYearTelegramCalendar):
     "Класс календаря для кастомизации"
@@ -50,19 +51,19 @@ def reset(id: Union[str, int]) -> None:
 def work(id: Union[str, int]) -> None:
     """Основная функция, обрабатывает ответы пользователя и формирует запросы к API и БД"""
     error = False
-    city = globalVar[id]['city']
-    datet = globalVar[id]['datetime']
-    check_in = globalVar[id]['check_in']
-    check_out = globalVar[id]['check_out']
-    quantity_photos = globalVar[id]['quantity_photos']
-    quantity = globalVar[id]['quantity']
-    command = globalVar[id]['command']
-    uid = globalVar[id]['uid']
-    price_min = globalVar[id].get('price_min', '')
-    price_max = globalVar[id].get('price_max', '')
-    distance = globalVar[id].get('distance', '')
-    period = globalVar[id]['period']
-    destination_id = globalVar[id]['destination_id']
+    city = state_data[id]['city']
+    datet = state_data[id]['datetime']
+    check_in = state_data[id]['check_in']
+    check_out = state_data[id]['check_out']
+    quantity_photos = state_data[id]['quantity_photos']
+    quantity = state_data[id]['quantity']
+    command = state_data[id]['command']
+    uid = state_data[id]['uid']
+    price_min = state_data[id].get('price_min', '')
+    price_max = state_data[id].get('price_max', '')
+    distance = state_data[id].get('distance', '')
+    period = state_data[id]['period']
+    destination_id = state_data[id]['destination_id']
     try:
         load = bot.send_animation(chat_id=id,
                                   animation='CgACAgIAAxkDAAIF9GJIBSTAGTfAnNTwq5sE_K6x3guAAAKfFwAC71JASk1brYyEpiWZIwQ',
@@ -87,6 +88,7 @@ def work(id: Union[str, int]) -> None:
     else:
         if len(hotels) == 0:
             bot.send_message(chat_id=id, text="По вашему запросу ничего не найдено")
+            reset(id=id)
         else:
             for hotel in hotels:
                 bot.send_message(chat_id=id, text=
@@ -122,10 +124,10 @@ def work(id: Union[str, int]) -> None:
 @bot.message_handler(commands=["lowprice", "highprice", "bestdeal"])
 def price(message: types.Message) -> None:
     bot.send_message(chat_id=message.chat.id, text="В каком городе будем искать?")
-    globalVar[message.chat.id] = {}
-    globalVar[message.chat.id]['command'] = message.text
-    globalVar[message.chat.id]['datetime'] = datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-    globalVar[message.chat.id]['uid'] = str(uuid.uuid1())
+    state_data[message.chat.id] = {}
+    state_data[message.chat.id]['command'] = message.text
+    state_data[message.chat.id]['datetime'] = datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+    state_data[message.chat.id]['uid'] = str(uuid.uuid1())
     dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_CITY.value)
 
 
@@ -182,8 +184,8 @@ def get_city(message: types.Message) -> None:
     if city:
         bot.send_message(chat_id=message.chat.id, text=f"Название города: {city.split('|')[1]}"
                                                        f"\n📌 Google maps: https://www.google.com/maps/@?api=1&map_action=map&center={city.split('|')[2]}&zoom=9")
-        globalVar[message.chat.id]['city'] = city.split('|')[1]
-        globalVar[message.chat.id]['destination_id'] = city.split('|')[0]
+        state_data[message.chat.id]['city'] = city.split('|')[1]
+        state_data[message.chat.id]['destination_id'] = city.split('|')[0]
         keybord(id=message.chat.id, city='True')
     else:
         bot.send_message(chat_id=message.chat.id, text="Ничего не нашлось!")
@@ -204,13 +206,13 @@ def get_quantity(message: types.Message) -> None:
                          text=f"Ошибка, повторите ввод. Какое количество отелей будем показывать (максимум {config.quantity_max_hotel})?")
         return
     else:
-        globalVar[message.chat.id]['quantity'] = message.text
+        state_data[message.chat.id]['quantity'] = message.text
         bot.send_message(chat_id=message.chat.id, text="Планируемая дата заезда (дд.мм.гггг)?")
         dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_CHECKIN.value)
-        my_calendar(id=message.chat.id)
+        get_calendar(id=message.chat.id)
 
 
-def my_calendar(id):
+def get_calendar(id):
     calendar, step = MyStyleCalendar(locale='ru', min_date=datetime.date.today()).build()
     bot.send_message(id, f"Выберите {LSTEP[step]}", reply_markup=calendar)
 
@@ -230,7 +232,7 @@ def cal(c):
         bot.edit_message_text(f"Вы выбрали {result}",
                               c.message.chat.id,
                               c.message.message_id)
-        globalVar[c.message.chat.id]['check_in'] = result.strftime('%m.%d.%Y')
+        state_data[c.message.chat.id]['check_in'] = result.strftime('%d.%m.%Y')
         bot.send_message(chat_id=c.message.chat.id, text="Планируемое кол-во дней?")
         dbworker.set_state(id=str(c.message.chat.id), state=config.States.S_ENTER_CHECKOUT.value)
 
@@ -247,10 +249,10 @@ def get_check_out(message: types.Message) -> None:
         bot.send_message(chat_id=message.chat.id, text="Ошибка, повторите ввод. Кол-во дней?")
         return
     else:
-        globalVar[message.chat.id][
-            'check_out'] = f"{(datetime.datetime.strptime(globalVar[message.chat.id]['check_in'], '%d.%m.%Y') + datetime.timedelta(days=int(message.text))).strftime('%d.%m.%Y')}"
-        globalVar[message.chat.id]['period'] = message.text
-        if globalVar[message.chat.id]['command'] == '/bestdeal':
+        state_data[message.chat.id][
+            'check_out'] = f"{(datetime.datetime.strptime(state_data[message.chat.id]['check_in'], '%d.%m.%Y') + datetime.timedelta(days=int(message.text))).strftime('%d.%m.%Y')}"
+        state_data[message.chat.id]['period'] = message.text
+        if state_data[message.chat.id]['command'] == '/bestdeal':
             bot.send_message(chat_id=message.chat.id, text="Введите минимальную цену (руб/сут)")
             dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_PRICEMIN.value)
         else:
@@ -282,7 +284,7 @@ def callback_worker(call: types.CallbackQuery) -> None:
                          text=f'Количество фотографий для каждого отеля (максимум {config.quantity_max_photo})?')
         dbworker.set_state(id=str(call.message.chat.id), state=config.States.S_ENTER_QUANTITYPHOTO.value)
     elif call.data == "no":
-        globalVar[call.message.chat.id]['quantity_photos'] = '0'
+        state_data[call.message.chat.id]['quantity_photos'] = '0'
         dbworker.set_state(id=str(call.message.chat.id), state=config.States.S_START.value)
         work(id=call.message.chat.id)
     elif call.data == "no_city":
@@ -308,7 +310,7 @@ def get_quantity_photos(message: types.Message) -> None:
                          text=f"Ошибка. Количество фотографий для каждого отеля (максимум {config.quantity_max_photo})?")
         return
     else:
-        globalVar[message.chat.id]['quantity_photos'] = message.text
+        state_data[message.chat.id]['quantity_photos'] = message.text
         dbworker.set_state(id=str(message.chat.id), state=config.States.S_START.value)
         work(id=message.chat.id)
 
@@ -329,7 +331,7 @@ def get_pricemin(message: types.Message) -> None:
             price_min = '1'
         else:
             price_min = message.text
-        globalVar[message.chat.id]['price_min'] = price_min
+        state_data[message.chat.id]['price_min'] = price_min
         bot.send_message(chat_id=message.chat.id, text="Введите максимальную цену (руб/сут)")
         dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_PRICEMAX.value)
 
@@ -342,11 +344,11 @@ def get_pricemax(message: types.Message) -> None:
     elif not message.text.isdigit():
         bot.send_message(chat_id=message.chat.id, text="Введите цифрами максимальную цену (руб/сут)")
         return
-    elif 1 > int(message.text) < int(globalVar[message.chat.id]['price_min']):
+    elif 1 > int(message.text) < int(state_data[message.chat.id]['price_min']):
         bot.send_message(chat_id=message.chat.id, text="Ошибка ввода, введите максимальную цену (руб/сут)")
         return
     else:
-        globalVar[message.chat.id]['price_max'] = message.text
+        state_data[message.chat.id]['price_max'] = message.text
         bot.send_message(chat_id=message.chat.id, text="Введите максимальное расстояние от центра (км)")
         dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_DISTANCE.value)
 
@@ -363,7 +365,7 @@ def get_distance(message: types.Message) -> None:
         bot.send_message(chat_id=message.chat.id, text="Ошибка, введите максимальное расстояние от центра (км)")
         return
     else:
-        globalVar[message.chat.id]['distance'] = message.text
+        state_data[message.chat.id]['distance'] = message.text
         dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_QUANTITYPHOTO.value)
         keybord(id=message.chat.id)
 
