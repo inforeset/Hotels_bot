@@ -1,4 +1,5 @@
 import sqlite3 as sq
+from typing import Union
 
 from loguru import logger
 
@@ -101,14 +102,14 @@ def set_data(string, values=tuple(), multiple=False) -> bool:
             logger.exception(exc)
 
 
-def check_data(string: str) -> str:
+def check_data(string: str) -> Union[str, int]:
     """Функция для проверки существования записи в таблице states"""
     with sq.connect(config.db_file) as con:
         cur = con.cursor()
         try:
             cur.execute(string)
             return cur.fetchone()[0]
-        except sq.Error as exc:
+        except (sq.Error, Exception) as exc:
             logger.exception(exc)
 
 
