@@ -7,13 +7,14 @@ from telebot import types
 
 import config
 import dbworker
+import filters
 import price as p
 
 from loguru import logger
 from telegram_bot_calendar import WYearTelegramCalendar, LSTEP
 
 if __name__ == '__main__':
-    bot = telebot.TeleBot(token=config.token)
+    bot = telebot.TeleBot(token=config.token, skip_pending=True)
     state_data = {}
     dbworker.create_tables()
     logger.add('logs/logs_{time}.log', level='DEBUG', format="{time} {level} {message}", rotation="06:00",
@@ -22,6 +23,7 @@ if __name__ == '__main__':
     logger.info('Information message')
     logger.warning('Warning')
     LSTEP = {'y': 'год', 'm': 'месяц', 'd': 'день'}
+
 
 class MyStyleCalendar(WYearTelegramCalendar):
     "Класс календаря для кастомизации"
@@ -43,7 +45,7 @@ def form_media_group(photos: list, error: bool = False) -> list:
 
 def reset(id: Union[str, int]) -> None:
     """Функция для сброса состояния"""
-    dbworker.set_state(id=str(id), state=config.States.S_START.value)
+    dbworker.set_state(id=str(id), state=config.States.S_START)
     help(id=id)
 
 
@@ -120,17 +122,17 @@ def work(id: Union[str, int]) -> None:
             help(id=id)
 
 
-@bot.message_handler(commands=["lowprice", "highprice", "bestdeal"])
+@bot.message_handler(commands=["lowprice", "highprice", "bestdeal"], is_private=True)
 def price(message: types.Message) -> None:
     bot.send_message(chat_id=message.chat.id, text="В каком городе будем искать?")
     state_data[message.chat.id] = {}
     state_data[message.chat.id]['command'] = message.text
     state_data[message.chat.id]['datetime'] = datetime.datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     state_data[message.chat.id]['uid'] = str(uuid.uuid1())
-    dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_CITY.value)
+    dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_CITY)
 
 
-@bot.message_handler(commands=["history"])
+@bot.message_handler(commands=["history"], is_private=True)
 def history(message: types.Message) -> None:
     history = dbworker.get_history(id=str(message.chat.id))
     if history:
@@ -172,7 +174,8 @@ def history(message: types.Message) -> None:
 
 
 @bot.message_handler(
-    func=lambda message: dbworker.get_current_state(id=message.chat.id) == config.States.S_ENTER_CITY.value)
+    func=lambda message: dbworker.get_current_state(id=message.chat.id) == config.States.S_ENTER_CITY.value,
+    is_private=True)
 def get_city(message: types.Message) -> None:
     if message.text == '/reset':
         reset(id=message.chat.id)
@@ -192,7 +195,8 @@ def get_city(message: types.Message) -> None:
 
 
 @bot.message_handler(
-    func=lambda message: dbworker.get_current_state(id=message.chat.id) == config.States.S_ENTER_QUANTITY.value)
+    func=lambda message: dbworker.get_current_state(id=message.chat.id) == config.States.S_ENTER_QUANTITY.value,
+    is_private=True)
 def get_quantity(message: types.Message) -> None:
     if message.text == '/reset':
         reset(id=message.chat.id)
@@ -200,14 +204,14 @@ def get_quantity(message: types.Message) -> None:
         bot.send_message(chat_id=message.chat.id,
                          text=f"Введите цифрами, какое количество отелей будем показывать (максимум {config.quantity_max_hotel})?")
         return
-    elif 1 > int(message.text) > config.quantity_max_hotel:
+    elif int(message.text) < 1 or int(message.text) > config.quantity_max_hotel:
         bot.send_message(chat_id=message.chat.id,
                          text=f"Ошибка, повторите ввод. Какое количество отелей будем показывать (максимум {config.quantity_max_hotel})?")
         return
     else:
         state_data[message.chat.id]['quantity'] = message.text
         bot.send_message(chat_id=message.chat.id, text="Планируемая дата заезда (дд.мм.гггг)?")
-        dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_CHECKIN.value)
+        dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_CHECKIN)
         get_calendar(id=message.chat.id)
 
 
@@ -216,7 +220,7 @@ def get_calendar(id):
     bot.send_message(id, f"Выберите {LSTEP[step]}", reply_markup=calendar)
 
 
-@bot.callback_query_handler(func=MyStyleCalendar.func())
+@bot.callback_query_handler(func=MyStyleCalendar.func(), is_private=True)
 def cal(c):
     result, key, step = MyStyleCalendar(locale='ru', min_date=datetime.date.today()).process(c.data)
     if c.data == "cbcal_0_n":
@@ -233,11 +237,12 @@ def cal(c):
                               c.message.message_id)
         state_data[c.message.chat.id]['check_in'] = result.strftime('%d.%m.%Y')
         bot.send_message(chat_id=c.message.chat.id, text="Планируемое кол-во дней?")
-        dbworker.set_state(id=str(c.message.chat.id), state=config.States.S_ENTER_CHECKOUT.value)
+        dbworker.set_state(id=str(c.message.chat.id), state=config.States.S_ENTER_CHECKOUT)
 
 
 @bot.message_handler(
-    func=lambda message: dbworker.get_current_state(id=message.chat.id) == config.States.S_ENTER_CHECKOUT.value)
+    func=lambda message: dbworker.get_current_state(id=message.chat.id) == config.States.S_ENTER_CHECKOUT.value,
+    is_private=True)
 def get_check_out(message: types.Message) -> None:
     if message.text == '/reset':
         reset(id=message.chat.id)
@@ -253,9 +258,9 @@ def get_check_out(message: types.Message) -> None:
         state_data[message.chat.id]['period'] = message.text
         if state_data[message.chat.id]['command'] == '/bestdeal':
             bot.send_message(chat_id=message.chat.id, text="Введите минимальную цену (руб/сут)")
-            dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_PRICEMIN.value)
+            dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_PRICEMIN)
         else:
-            dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_PHOTO.value)
+            dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_PHOTO)
             keybord(id=message.chat.id)
 
 
@@ -275,28 +280,28 @@ def keybord(id: Union[str, int], city: Union[str, None] = None):
     bot.send_message(chat_id=id, text=question, reply_markup=keyboard)
 
 
-@bot.callback_query_handler(func=lambda call: True)
+@bot.callback_query_handler(func=lambda call: True, is_private=True)
 def callback_worker(call: types.CallbackQuery) -> None:
-    bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup='')
+    bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=None)
     if call.data == "yes":
         bot.send_message(chat_id=call.message.chat.id,
                          text=f'Количество фотографий для каждого отеля (максимум {config.quantity_max_photo})?')
-        dbworker.set_state(id=str(call.message.chat.id), state=config.States.S_ENTER_QUANTITYPHOTO.value)
+        dbworker.set_state(id=str(call.message.chat.id), state=config.States.S_ENTER_QUANTITYPHOTO)
     elif call.data == "no":
         state_data[call.message.chat.id]['quantity_photos'] = '0'
-        dbworker.set_state(id=str(call.message.chat.id), state=config.States.S_START.value)
+        dbworker.set_state(id=str(call.message.chat.id), state=config.States.S_START)
         work(id=call.message.chat.id)
     elif call.data == "no_city":
         reset(id=call.message.chat.id)
     elif call.data == "city":
         bot.send_message(chat_id=call.message.chat.id,
                          text=f"Какое количество отелей будем показывать (максимум {config.quantity_max_hotel})?")
-        dbworker.set_state(id=str(call.message.chat.id), state=config.States.S_ENTER_QUANTITY.value)
+        dbworker.set_state(id=str(call.message.chat.id), state=config.States.S_ENTER_QUANTITY)
 
 
 @bot.message_handler(
     func=lambda message: dbworker.get_current_state(
-        id=message.chat.id) == config.States.S_ENTER_QUANTITYPHOTO.value)
+        id=message.chat.id) == config.States.S_ENTER_QUANTITYPHOTO.value, is_private=True)
 def get_quantity_photos(message: types.Message) -> None:
     if message.text == '/reset':
         reset(id=message.chat.id)
@@ -304,18 +309,19 @@ def get_quantity_photos(message: types.Message) -> None:
         bot.send_message(chat_id=message.chat.id,
                          text=f"Введите цифрами, количество фотографий для каждого отеля (максимум {config.quantity_max_photo})?")
         return
-    elif 1 > int(message.text) > config.quantity_max_photo:
+    elif int(message.text) < 1 or int(message.text) > config.quantity_max_photo:
         bot.send_message(chat_id=message.chat.id,
                          text=f"Ошибка. Количество фотографий для каждого отеля (максимум {config.quantity_max_photo})?")
         return
     else:
         state_data[message.chat.id]['quantity_photos'] = message.text
-        dbworker.set_state(id=str(message.chat.id), state=config.States.S_START.value)
+        dbworker.set_state(id=str(message.chat.id), state=config.States.S_START)
         work(id=message.chat.id)
 
 
 @bot.message_handler(
-    func=lambda message: dbworker.get_current_state(id=message.chat.id) == config.States.S_ENTER_PRICEMIN.value)
+    func=lambda message: dbworker.get_current_state(id=message.chat.id) == config.States.S_ENTER_PRICEMIN.value,
+    is_private=True)
 def get_pricemin(message: types.Message) -> None:
     if message.text == '/reset':
         reset(id=message.chat.id)
@@ -332,11 +338,12 @@ def get_pricemin(message: types.Message) -> None:
             price_min = message.text
         state_data[message.chat.id]['price_min'] = price_min
         bot.send_message(chat_id=message.chat.id, text="Введите максимальную цену (руб/сут)")
-        dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_PRICEMAX.value)
+        dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_PRICEMAX)
 
 
 @bot.message_handler(
-    func=lambda message: dbworker.get_current_state(id=message.chat.id) == config.States.S_ENTER_PRICEMAX.value)
+    func=lambda message: dbworker.get_current_state(id=message.chat.id) == config.States.S_ENTER_PRICEMAX.value,
+    is_private=True)
 def get_pricemax(message: types.Message) -> None:
     if message.text == '/reset':
         reset(id=message.chat.id)
@@ -349,11 +356,12 @@ def get_pricemax(message: types.Message) -> None:
     else:
         state_data[message.chat.id]['price_max'] = message.text
         bot.send_message(chat_id=message.chat.id, text="Введите максимальное расстояние от центра (км)")
-        dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_DISTANCE.value)
+        dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_DISTANCE)
 
 
 @bot.message_handler(
-    func=lambda message: dbworker.get_current_state(id=message.chat.id) == config.States.S_ENTER_DISTANCE.value)
+    func=lambda message: dbworker.get_current_state(id=message.chat.id) == config.States.S_ENTER_DISTANCE.value,
+    is_private=True)
 def get_distance(message: types.Message) -> None:
     if message.text == '/reset':
         reset(id=message.chat.id)
@@ -365,7 +373,7 @@ def get_distance(message: types.Message) -> None:
         return
     else:
         state_data[message.chat.id]['distance'] = message.text
-        dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_QUANTITYPHOTO.value)
+        dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_QUANTITYPHOTO)
         keybord(id=message.chat.id)
 
 
@@ -377,7 +385,7 @@ def help(id: Union[int, str]) -> None:
                                       "/reset - выход в меню")
 
 
-@bot.message_handler(content_types=['text'])
+@bot.message_handler(content_types=['text'], is_private=True)
 def start(message: types.Message) -> None:
     if message.text.lower() == "привет" or message.text.lower() == "/hello-world" or message.text.lower() == "/start":
         bot.send_message(chat_id=message.chat.id, text="Привет, для получения списка команд набери /help")
@@ -387,4 +395,5 @@ def start(message: types.Message) -> None:
         bot.send_message(chat_id=message.chat.id, text="Я тебя не понимаю. Напиши /help.")
 
 
+bot.add_custom_filter(filters.IsPrivateChatFilter())
 bot.polling(none_stop=True, interval=0)

@@ -1,4 +1,5 @@
 import sqlite3 as sq
+from enum import Enum
 from typing import Union
 
 from loguru import logger
@@ -147,12 +148,12 @@ def set_photos(photos: tuple) -> bool:
     return set_data(string=f"INSERT INTO photos(hotel_id, photo) VALUES(?, ?);", values=photos, multiple=True)
 
 
-def set_state(id: str, state: str) -> None:
+def set_state(id: str, state: config.States) -> None:
     """Функция для записи данных в таблицу states"""
     if check_data(string=f"SELECT Count(chat_id) FROM states WHERE chat_id = {id};"):
-        set_data(string=f"UPDATE states SET state = {state} WHERE chat_id = {id};")
+        set_data(string=f"UPDATE states SET state = {state.value} WHERE chat_id = {id};")
     else:
-        set_data(string=f"INSERT INTO states(chat_id, state) VALUES(?, ?);", values=(id, state,))
+        set_data(string=f"INSERT INTO states(chat_id, state) VALUES(?, ?);", values=(id, state.value,))
 
 
 def get_current_state(id: str) -> str:
