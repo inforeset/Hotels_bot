@@ -13,3 +13,6 @@
 
 Начало работы:
 Для запуска бота необходим установленный интерпретатор Python версии 3.9 все остальные пакеты в requirements.txt. Нужен файл .env куда нужно сохранить RAPIDAPI_KEY и токен от вашего бота. Пример файла в .env.template.
+
+Структура БД:
+![database structure](https://github.com/inforeset/Hotels_bot/blob/master/database_structure.jpg?raw=true)
