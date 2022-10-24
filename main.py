@@ -3,26 +3,18 @@ import uuid
 from typing import Union
 
 import telebot
+from loguru import logger
 from telebot import types
+from telebot.apihelper import ApiTelegramException
+from telebot.custom_filters import TextFilter, TextMatchFilter
+from telegram_bot_calendar import WYearTelegramCalendar, LSTEP
 
 import config
 import dbworker
 import filters
 import price as p
 
-from loguru import logger
-from telegram_bot_calendar import WYearTelegramCalendar, LSTEP
-
-if __name__ == '__main__':
-    bot = telebot.TeleBot(token=config.token, skip_pending=True)
-    state_data = {}
-    dbworker.create_tables()
-    logger.add('logs/logs_{time}.log', level='DEBUG', format="{time} {level} {message}", rotation="06:00",
-               compression="zip")
-    logger.debug('Error')
-    logger.info('Information message')
-    logger.warning('Warning')
-    LSTEP = {'y': 'год', 'm': 'месяц', 'd': 'день'}
+bot = telebot.TeleBot(token=config.token, skip_pending=True)
 
 
 class MyStyleCalendar(WYearTelegramCalendar):
@@ -69,7 +61,8 @@ def work(id: Union[str, int]) -> None:
         load = bot.send_animation(chat_id=id,
                                   animation='CgACAgIAAxkDAAIF9GJIBSTAGTfAnNTwq5sE_K6x3guAAAKfFwAC71JASk1brYyEpiWZIwQ',
                                   caption='Загружаю...')
-    except:
+    except ApiTelegramException as exc:
+        logger.exception(exc)
         load = bot.send_message(chat_id=id, text='Ищем...')
     hotels, photos = p.start(
         list_par=[city, check_in, check_out, quantity_photos, quantity, uid, command, price_min, price_max,
@@ -188,7 +181,7 @@ def get_city(message: types.Message) -> None:
                                                        f"\n📌 Google maps: https://www.google.com/maps/@?api=1&map_action=map&center={city.split('|')[2]}&zoom=9")
         state_data[message.chat.id]['city'] = city.split('|')[1]
         state_data[message.chat.id]['destination_id'] = city.split('|')[0]
-        keybord(id=message.chat.id, city='True')
+        keyboard(id=message.chat.id, city='True')
     else:
         bot.send_message(chat_id=message.chat.id, text="Ничего не нашлось!")
         reset(id=message.chat.id)
@@ -261,11 +254,11 @@ def get_check_out(message: types.Message) -> None:
             dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_PRICEMIN)
         else:
             dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_PHOTO)
-            keybord(id=message.chat.id)
+            keyboard(id=message.chat.id)
 
 
-def keybord(id: Union[str, int], city: Union[str, None] = None):
-    keyboard = types.InlineKeyboardMarkup()  # наша клавиатура
+def keyboard(id: Union[str, int], city: Union[str, None] = None):
+    keyboard_markup = types.InlineKeyboardMarkup()  # наша клавиатура
     if city is None:
         callback_data_yes = 'yes'
         callback_data_no = 'no'
@@ -276,27 +269,38 @@ def keybord(id: Union[str, int], city: Union[str, None] = None):
         question = 'Это правильное расположение?'
     key_yes = types.InlineKeyboardButton(text='Да', callback_data=callback_data_yes)
     key_no = types.InlineKeyboardButton(text='Нет', callback_data=callback_data_no)
-    keyboard.add(key_yes, key_no)
-    bot.send_message(chat_id=id, text=question, reply_markup=keyboard)
+    keyboard_markup.add(key_yes, key_no)
+    bot.send_message(chat_id=id, text=question, reply_markup=keyboard_markup)
 
 
-@bot.callback_query_handler(func=lambda call: True, is_private=True)
-def callback_worker(call: types.CallbackQuery) -> None:
+@bot.callback_query_handler(func=None, text=TextFilter(equals='city'), is_private=True)
+def callback_corrext_city(call: types.CallbackQuery) -> None:
     bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=None)
-    if call.data == "yes":
-        bot.send_message(chat_id=call.message.chat.id,
-                         text=f'Количество фотографий для каждого отеля (максимум {config.quantity_max_photo})?')
-        dbworker.set_state(id=str(call.message.chat.id), state=config.States.S_ENTER_QUANTITYPHOTO)
-    elif call.data == "no":
-        state_data[call.message.chat.id]['quantity_photos'] = '0'
-        dbworker.set_state(id=str(call.message.chat.id), state=config.States.S_START)
-        work(id=call.message.chat.id)
-    elif call.data == "no_city":
-        reset(id=call.message.chat.id)
-    elif call.data == "city":
-        bot.send_message(chat_id=call.message.chat.id,
-                         text=f"Какое количество отелей будем показывать (максимум {config.quantity_max_hotel})?")
-        dbworker.set_state(id=str(call.message.chat.id), state=config.States.S_ENTER_QUANTITY)
+    bot.send_message(chat_id=call.message.chat.id,
+                     text=f"Какое количество отелей будем показывать (максимум {config.quantity_max_hotel})?")
+    dbworker.set_state(id=str(call.message.chat.id), state=config.States.S_ENTER_QUANTITY)
+
+
+@bot.callback_query_handler(func=None, text=TextFilter(equals='no_city'), is_private=True)
+def callback_incorrext_city(call: types.CallbackQuery) -> None:
+    bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=None)
+    reset(id=call.message.chat.id)
+
+
+@bot.callback_query_handler(func=None, text=TextFilter(equals='yes'), is_private=True)
+def callback_load_foto(call: types.CallbackQuery) -> None:
+    bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=None)
+    bot.send_message(chat_id=call.message.chat.id,
+                     text=f'Количество фотографий для каждого отеля (максимум {config.quantity_max_photo})?')
+    dbworker.set_state(id=str(call.message.chat.id), state=config.States.S_ENTER_QUANTITYPHOTO)
+
+
+@bot.callback_query_handler(func=None, text=TextFilter(equals='no'), is_private=True)
+def callback_without_foto(call: types.CallbackQuery) -> None:
+    bot.edit_message_reply_markup(chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=None)
+    state_data[call.message.chat.id]['quantity_photos'] = '0'
+    dbworker.set_state(id=str(call.message.chat.id), state=config.States.S_START)
+    work(id=call.message.chat.id)
 
 
 @bot.message_handler(
@@ -374,7 +378,7 @@ def get_distance(message: types.Message) -> None:
     else:
         state_data[message.chat.id]['distance'] = message.text
         dbworker.set_state(id=str(message.chat.id), state=config.States.S_ENTER_QUANTITYPHOTO)
-        keybord(id=message.chat.id)
+        keyboard(id=message.chat.id)
 
 
 def help(id: Union[int, str]) -> None:
@@ -385,15 +389,30 @@ def help(id: Union[int, str]) -> None:
                                       "/reset - выход в меню")
 
 
-@bot.message_handler(content_types=['text'], is_private=True)
+@bot.message_handler(commands=["help", "reset"], is_private=True)
+def price(message: types.Message) -> None:
+    help(id=message.chat.id)
+
+
+@bot.message_handler(text=TextFilter(contains=("привет", "/hello-world", "/start"),  ignore_case=True), is_private=True)
 def start(message: types.Message) -> None:
-    if message.text.lower() == "привет" or message.text.lower() == "/hello-world" or message.text.lower() == "/start":
-        bot.send_message(chat_id=message.chat.id, text="Привет, для получения списка команд набери /help")
-    elif message.text == "/help" or message.text == "/reset":
-        help(id=message.chat.id)
-    else:
-        bot.send_message(chat_id=message.chat.id, text="Я тебя не понимаю. Напиши /help.")
+    bot.send_message(chat_id=message.chat.id, text="Привет, для получения списка команд набери /help")
 
 
-bot.add_custom_filter(filters.IsPrivateChatFilter())
-bot.polling(none_stop=True, interval=0)
+@bot.message_handler(is_private=True)
+def start(message: types.Message) -> None:
+    bot.send_message(chat_id=message.chat.id, text="Я тебя не понимаю. Напиши /help.")
+
+
+if __name__ == '__main__':
+    state_data = {}
+    dbworker.create_tables()
+    logger.add('logs/logs_{time}.log', level='DEBUG', format="{time} {level} {message}", rotation="06:00",
+               compression="zip")
+    logger.debug('Error')
+    logger.info('Information message')
+    logger.warning('Warning')
+    LSTEP = {'y': 'год', 'm': 'месяц', 'd': 'день'}
+    bot.add_custom_filter(TextMatchFilter())
+    bot.add_custom_filter(filters.IsPrivateChatFilter())
+    bot.infinity_polling()
