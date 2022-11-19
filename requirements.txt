@@ -1,0 +1,8 @@
+pyTelegramBotAPI==4.7.1
+python-dotenv==0.21.0
+lxml==4.9.1
+redis==4.3.4
+psycopg2==2.9.5
+alembic==1.8.1
+SQLAlchemy==1.4.44
+python-telegram-bot-calendar==1.0.5
