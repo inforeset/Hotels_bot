@@ -16,7 +16,6 @@ def set_history(data: Dict, error: bool, session: Session) -> History:
     """
     record_h = History()
     record_h.telegram_id = data['telegram_id']
-    record_h.record_id = data['record_id']
     record_h.check_in = datetime.datetime.strptime(data['check_in'], '%Y-%m-%d')
     record_h.check_out = datetime.datetime.strptime(data['check_out'], '%Y-%m-%d')
     record_h.city = data['city']
@@ -31,4 +30,5 @@ def set_history(data: Dict, error: bool, session: Session) -> History:
         record_h.price_max = data['price_max']
         record_h.price_min = data['price_min']
     session.add(record_h)
+    session.flush()
     return record_h

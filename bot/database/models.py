@@ -8,7 +8,7 @@ class History(Base):
     __tablename__ = "history"
 
     telegram_id = Column(BigInteger, nullable=False, index=True)
-    record_id = Column(UUID, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     check_in = Column(Date, nullable=False)
     check_out = Column(Date, nullable=False)
     city = Column(String, nullable=False)
@@ -27,7 +27,7 @@ class Hotels(Base):
     __tablename__ = "hotels"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    history_id = Column(UUID, ForeignKey('history.record_id', ondelete='CASCADE'), nullable=False, index=True)
+    history_id = Column(Integer, ForeignKey('history.id', ondelete='CASCADE'), nullable=False, index=True)
     hotel_id = Column(BigInteger, nullable=False, index=True)  #
     center = Column(Numeric, nullable=False)
     coordinates = Column(String, nullable=False)

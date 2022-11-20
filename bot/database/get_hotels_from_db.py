@@ -14,6 +14,6 @@ def get_hotels_db(record_history: History, session: Session) -> List[Hotels]:
     :return: List[Hotels]
     """
     hotels_request = session.execute(
-        select(Hotels).where(Hotels.history_id == record_history.record_id)
+        select(Hotels).where(Hotels.history_id == record_history.id)
     )
     return hotels_request.scalars().all()

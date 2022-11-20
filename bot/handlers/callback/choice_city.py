@@ -24,7 +24,7 @@ def city_callback(call: types.CallbackQuery, bot: TeleBot, config: Config) -> No
         del data['cities']
     bot.edit_message_text(message_id=call.message.id,
                           chat_id=call.message.chat.id,
-                          text=f"Какое количество отелей будем показывать ({config.rapid_api.max_hotel})?",
+                          text=f"Какое количество отелей будем показывать (максимум {config.rapid_api.max_hotel})?",
                           reply_markup=None)
 
 

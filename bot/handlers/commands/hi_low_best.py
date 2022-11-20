@@ -19,7 +19,6 @@ def commands_price(message: Message, bot: TeleBot) -> None:
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
         data['command'] = message.text
         data['date_time'] = datetime.datetime.utcnow().strftime('%d.%m.%Y %H:%M:%S')
-        data['record_id'] = str(uuid4())
         data['telegram_id'] = message.from_user.id
         data['chat_id'] = message.chat.id
 

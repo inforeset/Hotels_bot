@@ -16,7 +16,7 @@ def set_hotels(hotels: List[Dict], record_history: History, session: Session) ->
     writed_hotels = []
     for hotel in hotels:
         record_hot = Hotels()
-        record_hot.history_id = record_history.record_id
+        record_hot.history_id = record_history.id
         record_hot.hotel_id = hotel['hotel_id']
         record_hot.center = hotel['center']
         record_hot.coordinates = hotel['coordinates']

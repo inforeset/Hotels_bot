@@ -23,6 +23,7 @@ if config.config_file_name is not None:
 from bot.database.base import metadata
 from bot.config_data.config_reader import Config, load_config
 from bot.database.utils import make_connection_string
+from bot.database.models import History, Photo, Hotels
 target_metadata = metadata
 bot_config: Config = load_config()
 config.set_main_option(
