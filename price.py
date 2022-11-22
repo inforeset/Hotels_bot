@@ -29,7 +29,7 @@ def request_city(city: str) -> str:
         data = json.loads(request.text)
         coordinates = f'{data["suggestions"][0]["entities"][0]["latitude"]}+{data["suggestions"][0]["entities"][0]["longitude"]}'
         return f'{data["suggestions"][0]["entities"][0]["destinationId"]}|{data["suggestions"][0]["entities"][0]["name"]}|{coordinates}'
-    except (LookupError, TypeError) as exc:
+    except (LookupError, TypeError, KeyError) as exc:
         logger.exception(exc)
 
 
