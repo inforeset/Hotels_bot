@@ -1,64 +1,75 @@
 version: '3.3'
 services:
-    redis:
-        image: redis:7.0-alpine
-        restart: "on-failure"
-        environment:
-            - REDIS_HOST
-        volumes:
-            - "redis_config:/usr/local/etc/redis"
-            - "redis_data:/data"
-        command: "redis-server /usr/local/etc/redis/redis.conf"
-    db:
-        image: postgres:15-alpine
-        restart: "on-failure"
-        environment:
-            POSTGRES_USER: ${DB_USER}
-            POSTGRES_PASSWORD: ${DB_PASS}
-            POSTGRES_DB: ${DB_NAME}
-        volumes:
-            - "postgres_data:/var/lib/postgresql/data"
-    db_migration:
-        image: "inforeset/hotels_bot:latest"
-        restart: "on-failure"
-        depends_on:
-            -   db
-        environment:
-            -   DB_HOST=db
-            -   DB_PORT
-            -   DB_NAME
-            -   POSTGRES_USER
-            -   DB_PASS
-        command: sh -c "python -m alembic upgrade head"
-    bot:
-        image: "inforeset/hotels_bot:latest"
-        stop_signal: SIGINT
-        restart: "on-failure"
-        env_file: .env
-        environment:
-            - DB_HOST=db
-            - REDIS_HOST=redis
-        depends_on:
-            - db
-            - db_migration
+  redis:
+    image: redis:7.0-alpine
+    restart: "on-failure"
+    environment:
+      - REDIS_HOST
+    volumes:
+      - "redis_config:/usr/local/etc/redis"
+      - "redis_data:/data"
+    command: "redis-server /usr/local/etc/redis/redis.conf"
+  db:
+    image: postgres:15-alpine
+    restart: "on-failure"
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - "postgres_data:/var/lib/postgresql/data"
+  db_migration:
+    image: "inforeset/hotels_bot:latest"
+    restart: "on-failure"
+    env_file: .env
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_PORT:${DB_PORT}
+      - DB_NAME:${DB_NAME}
+      - DB_USER:${DB_USER}
+      - DB_PASS:${DB_PASS}
+    command: sh -c "python -m alembic upgrade head"
+  bot:
+    image: "inforeset/hotels_bot:latest"
+    stop_signal: SIGINT
+    restart: "on-failure"
+    env_file: .env
+    environment:
+      - DB_HOST=db
+      - DB_PORT:${DB_PORT}
+      - DB_NAME:${DB_NAME}
+      - DB_USER:${DB_USER}
+      - DB_PASS:${DB_PASS}
+      - USE_REDIS:${USE_REDIS}
+      - REDIS_HOST=redis
+      - BOT_TOKEN:${BOT_TOKEN}
+      - RAPIDAPI_KEY:${RAPIDAPI_KEY}
+      - MAX_HOTEL:${MAX_HOTEL}
+      - MAX_PHOTO:${MAX_PHOTO}
+    depends_on:
+      - db
+      - db_migration
+      - redis
 
 
 volumes:
-    postgres_data:
-        driver: local
-        driver_opts:
-            type: 'none'
-            o: 'bind'
-            device: './pg-data'
-    redis_config:
-        driver: local
-        driver_opts:
-            type: 'none'
-            o: 'bind'
-            device: './redis-config'
-    redis_data:
-        driver: local
-        driver_opts:
-            type: 'none'
-            o: 'bind'
-            device: './redis-data'
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: './pg-data'
+  redis_config:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: './redis-config'
+  redis_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: './redis-data'

@@ -1,5 +1,7 @@
+import os
 from dataclasses import dataclass
 from os import getenv
+from os.path import isfile, join
 
 from dotenv import find_dotenv, load_dotenv
 
@@ -44,9 +46,8 @@ def load_config() -> Config:
     Load config form .env and return it
     :return: Config
     '''
-    if not find_dotenv():
-        exit(".env doesn't exist")
-    else:
+
+    if not getenv("BOT_TOKEN"):
         load_dotenv()
 
     return Config(

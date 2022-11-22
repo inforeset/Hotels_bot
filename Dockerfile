@@ -4,8 +4,8 @@ FROM python:3.10-slim-buster as builder
 
 RUN apt-get update \
  && apt-get -y install libpq-dev libpq5 gcc \
- && pip install --no-cache-dir psycopg2-binary \
  && pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir psycopg2-binary \
  && pip install --no-cache-dir setuptools wheel \
  && rm -rf /var/lib/apt/lists/*
 
@@ -15,8 +15,6 @@ FROM builder
 WORKDIR /app
 
 COPY requirements.txt .
-
-COPY .env .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
