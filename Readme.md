@@ -5,7 +5,7 @@
 
 ## Used technology
 * Python (3.10);
-* aiogram (Telegram Bot framework);
+* PyTelegramBotApi (Telegram Bot framework);
 * Docker and Docker Compose (containerization);
 * PostgreSQL (database);
 * Redis (persistent storage for some ongoing data);
@@ -52,7 +52,7 @@ work with Rapid Api.
 
 ## Used technology
 * Python (3.10);
-* aiogram (Telegram Bot framework);
+* PyTelegramBotApi (Telegram Bot framework);
 * Docker and Docker Compose (containerization);
 * PostgreSQL (database);
 * Redis (persistent storage for some ongoing data);
