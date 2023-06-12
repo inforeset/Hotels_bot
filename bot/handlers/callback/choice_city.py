@@ -7,7 +7,7 @@ from bot.states.states import HotelsStates
 
 def city_callback(call: types.CallbackQuery, bot: TeleBot, config: Config) -> None:
     """
-    Callback write choised city into storage and set next state
+    Callback write chosen city into storage and set next state
     :param call: CallbackQuery
     :param bot: TeleBot
     :param config: Config

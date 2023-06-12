@@ -17,25 +17,33 @@ def parse_result(parse_list: List, data: Dict) -> List[Dict]:
         try:
             hotel_id = int(hotel['id'])
             name = hotel['name']
-            adress = f'{hotel["address"]["countryName"]}, {data["city"].capitalize()}, {hotel["address"].get("postalCode", "")}, {hotel["address"].get("streetAddress", "")}'
-            if len(hotel['landmarks']):
-                if hotel['landmarks'][0]['label'] == 'Центр города':
-                    center = float(hotel['landmarks'][0]['distance'].split()[0].replace(',', '.'))
-            price = float(hotel.get('ratePlan', {}).get('price', {}).get('exactCurrent', 0))
-            coordinates = f"{hotel['coordinate'].get('lat', 0)},{hotel['coordinate'].get('lon', 0)}"
-            star_rating = int(hotel['starRating'])
-            user_rating = float(hotel.get('guestReviews', {}).get('rating', '0,0').replace(',', '.'))
+            adress = ''
+            center = float(hotel['destinationInfo']['distanceFromDestination']['value']) * 1.61
+            price = float(hotel['price']['lead']['amount'])
+            if data['ue']:
+                price *= data['ue']
+            coordinates = f"0,0"
+            star_rating = hotel.get('star')
+            if star_rating:
+                star_rating = int(star_rating)
+            else:
+                star_rating = 0
+            user_rating = float(hotel['reviews']['total'])
             distance = data.get('distance')
             if distance and distance < center:
                 return hotels
-            hotels.append({'hotel_id': hotel_id,
-                           'name': name,
-                           'adress': adress,
-                           'center': center,
-                           'price': price,
-                           'coordinates': coordinates,
-                           'star_rating': star_rating,
-                           'user_rating': user_rating})
+            hotels.append(
+                {
+                    'hotel_id': hotel_id,
+                    'name': name,
+                    'adress': adress,
+                    'center': center,
+                    'price': price,
+                    'coordinates': coordinates,
+                    'star_rating': star_rating,
+                    'user_rating': user_rating
+                }
+            )
         except (LookupError, ValueError) as exc:
             logger.error(exc, exc_info=exc)
             continue

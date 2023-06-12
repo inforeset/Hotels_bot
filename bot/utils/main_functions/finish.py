@@ -27,7 +27,7 @@ def final(bot: TeleBot, message: Message, config: Config, session: Session) -> N
     error = False
     writed_hotels = []
     load = send_stickers(bot=bot, chat_id=message.chat.id, sticker='load_hotels')
-    with bot.retrieve_data(user_id=message.from_user.id, chat_id=message.chat.id) as data:
+    with bot.retrieve_data(user_id=message.chat.id, chat_id=message.chat.id) as data:
         send_data = data
     hotels, photo = photo_and_hotels(data=send_data, config=config, session=session)
     if hotels is None:

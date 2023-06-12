@@ -25,7 +25,7 @@ def result_message(hotels: List[Hotels], data: Dict, message: Message, bot: Tele
     logger = logging.getLogger(__name__)
     for hotel in hotels:
         bot.send_message(chat_id=message.chat.id,
-                         text=get_hotel_message(hotel=hotel, period=data['period']),
+                         text=get_hotel_message(hotel=hotel, period=data['period'], data=data),
                          disable_web_page_preview=True)
         if data['quantity_photo']:
             photos_h = get_photo_db(session=session, hotel_id=hotel.hotel_id, limit=data['quantity_photo'])

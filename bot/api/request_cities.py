@@ -15,12 +15,12 @@ def request_city(city: str, config: Config) -> Dict[Any, Dict[str, Any]]:
     :return:
     """
     logger = logging.getLogger(__name__)
-    url = "https://hotels4.p.rapidapi.com/locations/v2/search"
+    url = "https://hotels4.p.rapidapi.com/locations/v3/search"
 
-    querystring = {"query": city, "locale": "ru_RU", "currency": "RUB"}
+    querystring = {"q": city, "locale": "ru_RU"}
     response = {}
     try:
-        request = get_request(url=url, config=config, params=querystring)
+        request = get_request(url=url, method="GET", config=config, params=querystring)
         if request.status_code != 200:
             raise LookupError(f'Status code {request.status_code}')
         if not request:
@@ -28,13 +28,14 @@ def request_city(city: str, config: Config) -> Dict[Any, Dict[str, Any]]:
         data = json.loads(request.text)
         if not data:
             raise LookupError('Response is empty')
-        for entity in data["suggestions"][0]["entities"]:
-            response[entity['destinationId']] = {
-                'name': entity['name'],
-                'caption': remove_span(entity['caption']),
-                'latitude': entity['latitude'],
-                'longitude': entity['longitude']
-            }
+        for entity in data["sr"]:
+            if entity.get("gaiaId"):
+                response[entity['gaiaId']] = {
+                    'name': entity['regionNames']['shortName'],
+                    'caption': entity['regionNames']['displayName'],
+                    'latitude': entity['coordinates']['lat'],
+                    'longitude': entity['coordinates']['long']
+                }
 
         return response
 

@@ -1,7 +1,7 @@
 from bot.database.models import Hotels
 
 
-def get_hotel_message(hotel: Hotels, period: int) -> str:
+def get_hotel_message(hotel: Hotels, period: int, data: dict) -> str:
     """
     Form string for hotels messages
     :param hotel: Hotels
@@ -10,8 +10,12 @@ def get_hotel_message(hotel: Hotels, period: int) -> str:
     """
     price_period = round(hotel.price * period, 2)
     if hotel.price:
-        price_period = f'{price_period} RUB'
-        price = f"{hotel.price:.2f} RUB"
+        if data['ue']:
+            currency = 'RUB'
+        else:
+            currency = 'USD'
+        price_period = f'{price_period} {currency}'
+        price = f"{hotel.price:.2f} {currency}"
     else:
         price_period = 'Уточняйте в отеле'
         price = 'Уточняйте в отеле'
